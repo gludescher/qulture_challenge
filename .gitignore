@@ -1,0 +1,10 @@
+
+.vscode/
+
+*.sqlite
+
+*.pyc
+
+*.pdf
+
+qvenv/
