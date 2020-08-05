@@ -8,17 +8,46 @@ import os
 import datetime
 import requests
 
-app = Flask(__name__)
-cors = CORS(app)
 
 basedir = os.path.abspath(os.path.dirname(__file__))
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, 'epic.sqlite')
-app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = 'False'
 
-db = SQLAlchemy(app)
+app = Flask(__name__)
 ma = Marshmallow(app)
+db = SQLAlchemy()
+
+def create_test_app(db_name='test.sqlite'):
+    app = Flask(__name__)
+    app.config['TESTING'] = True
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, db_name)
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = 'False'
+    db.init_app(app)
+    app.app_context().push()
+    return app
+
+
+def create_production_app(db_name='epic.sqlite'):
+    app = Flask(__name__)
+    app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(basedir, db_name)
+    app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = 'False'
+    db.init_app(app)
+    app.app_context().push()
+    return app
+
+
+def create_app(run_mode):
+    global app
+    global ma
+    if run_mode == 'TEST_MODE':
+        app = create_test_app()
+    else:
+        app = create_production_app()
+    cors = CORS(app)
+    ma = Marshmallow(app)
+    return app, cors, ma
 
 def check_missing_parameters(received, required):
+    if request.json is None:
+        return required
     missing = []
     for param in required:
         if param not in request.json:

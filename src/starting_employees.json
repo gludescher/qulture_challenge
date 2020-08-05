@@ -1,0 +1,102 @@
+[
+    {
+        "name": "David Wallace",
+        "email": "suckit@dm.com",
+        "companyID": 1
+    },
+    {
+        "name": "Michael Scott",
+        "email": "mikeymike@dm.com",
+        "companyID": 1,
+        "managerID": 1
+    },
+    {
+        "name": "Dwight Schrute",
+        "email": "beets_bears_battlestargallactica@dm.com",
+        "companyID": 1,
+        "managerID": 2
+    },
+    {
+        "name": "Pam Beesly",
+        "email": "pamela@dm.com",
+        "companyID": 1,
+        "managerID": 2
+    },
+    {
+        "name": "Angela Martin",
+        "email": "accountant_b@dm.com",
+        "companyID": 1,
+        "managerID": 2
+    },
+    {
+        "name": "Jim Halpert",
+        "email": "jimbo_go_phillies@dm.com",
+        "companyID": 1,
+        "managerID": 3
+    },
+    {
+        "name": "Stanley Hudson",
+        "email": "stanley@tinder.com",
+        "companyID": 1,
+        "managerID": 3
+    },
+    {
+        "name": "Kevin Malone",
+        "email": "cookies@dm.com",
+        "companyID": 1,
+        "managerID": 5
+    },
+    {
+        "name": "Oscar Martinez",
+        "email": "oscars2senator@dm.com",
+        "companyID": 1,
+        "managerID": 5
+    },
+    {
+        "name": "Andy Bernard",
+        "email": "nard_dog@dm.com",
+        "companyID": 1,
+        "managerID": 1
+    },
+    {
+        "name": "Nellie Bertram",
+        "email": "donna_noble@dw.com",
+        "companyID": 1,
+        "managerID": 10
+    },
+    {
+        "name": "Erin Hannon",
+        "email": "erin@foster.com",
+        "companyID": 1,
+        "managerID": 10
+    },
+    {
+        "name": "Pete Miller",
+        "email": "plop@foster.com",
+        "companyID": 1,
+        "managerID": 12
+    },
+    {
+        "name": "Toby Flenderson",
+        "email": "hmmm_necks_O.O@dm.com",
+        "companyID": 2,
+        "managerID": 11
+    },
+    {
+        "name": "Richard Hendricks",
+        "email": "richie@pp.com",
+        "companyID": 2
+    },
+    {
+        "name": "Bertram Gilfoyle",
+        "email": "gilfoyle666@pp.com",
+        "companyID": 2,
+        "managerID": 15
+    },
+    {
+        "name": "Dinesh",
+        "email": "dine$h_tesla@pp.com",
+        "companyID": 2,
+        "managerID": 15
+    }
+]

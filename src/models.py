@@ -15,7 +15,7 @@ class Employee(db.Model):
     __tablename__ = 'Employees'
     employeeID = db.Column(db.Integer, primary_key=True)
     name = db.Column(db.String(80), unique=False, nullable=False)
-    email = db.Column(db.String(80), unique=False)
+    email = db.Column(db.String(80), unique=True)
     companyID = db.Column(db.Integer, db.ForeignKey("Companies.companyID"))
     managerID = db.Column(db.Integer, db.ForeignKey("Employees.employeeID"))
 
@@ -42,7 +42,7 @@ employees_schema = EmployeeSchema(many=True)
 class Company(db.Model):
     __tablename__ = 'Companies'
     companyID = db.Column(db.Integer, primary_key=True)
-    name = db.Column(db.String(80), unique=False)
+    name = db.Column(db.String(80), unique=True)
 
     employees = db.relationship("Employee", backref='company_employees')
 
