@@ -72,14 +72,14 @@
     },
     {
         "name": "Pete Miller",
-        "email": "plop@foster.com",
+        "email": "plop@dm.com",
         "companyID": 1,
         "managerID": 12
     },
     {
         "name": "Toby Flenderson",
         "email": "hmmm_necks_O.O@dm.com",
-        "companyID": 2,
+        "companyID": 1,
         "managerID": 11
     },
     {

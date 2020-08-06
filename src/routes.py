@@ -11,9 +11,9 @@ import os
 import datetime
 import requests
 from models import Company, CompanySchema, company_schema, companies_schema
-from models import Employee, EmployeeSchema, employee_schema, employees_schema
-
-# app = create_production_app()
+from models import Employee, EmployeeSchema, employee_schema, employees_schema, update_manager_trigger
+import api_error_handler as aeh
+from api_error_handler import error_handler
 
 # Recursive function that goes up a company's structure, checking for possible 
 # management loops when creating/editing an employee. 
@@ -72,7 +72,7 @@ def add_company():
         return jsonify(sql_result), 200
 
     except Exception as e:
-        return jsonify({"SQL ERROR: ": str(e)}), 400
+        return error_handler(400, aeh.SQL_CONSTRAINT_FAILED, message=str(e))
 
 
 # endpoint to show all lines
@@ -80,6 +80,8 @@ def add_company():
 def get_companies():
     all_companies = Company.query.all()
     sql_result = companies_schema.dump(all_companies)
+    if len(sql_result) == 0:
+        return jsonify(sql_result), 404
     return jsonify(sql_result), 200
 
 
@@ -87,7 +89,7 @@ def get_companies():
 def get_company_detail(id):
     company = Company.query.get(id)
     if company is None:
-        return "Company not found", 404
+        return error_handler(404, aeh.SQL_NOT_FOUND, message_param='company')
     sql_result = company_schema.dump(company)
     return jsonify(sql_result), 200
 
@@ -106,7 +108,7 @@ def get_company_by_name():
 def get_company_employees(id):
     company = Company.query.get(id)
     if company is None:
-        return "Company not found", 404
+        return error_handler(404, aeh.SQL_NOT_FOUND, message_param='company')
     company_employees = Employee.query.filter(Employee.companyID==id)
     sql_result = employees_schema.dump(company_employees)
     if len(sql_result) == 0:
@@ -126,27 +128,32 @@ def add_employee():
 
     missing = app_core.check_missing_parameters(request, required)
     if len(missing) > 0:
-        return jsonify({"HTTP Error": "Missing required parameter(s) " + str(missing) + "." }), 400
+        return error_handler(400, aeh.HTTP_MISSING_PARAMS, message_param=missing)
 
     name = request.json['name']
     email = request.json['email']
-    companyID = None if 'companyID' not in request.json else request.json['companyID']
-    managerID = None if 'managerID' not in request.json else request.json['managerID']
+    
+    try:
+        companyID = None if 'companyID' not in request.json else int(request.json['companyID'])
+        managerID = None if 'managerID' not in request.json else int(request.json['managerID'])
+    except:
+        return error_handler(400, aeh.HTTP_PARAM_TYPE, message="Parameters 'companyID' and 'managerID' expect numeric input.")
 
     new_employee = Employee(name, email, companyID, managerID)
 
-    if companyID != None:
+    if companyID is not None:
         company = Company.query.get(request.json['companyID'])
         if company is None:
-            return jsonify({"SQL ERROR": "No company found with ID " + str(request.json['companyID']) + " to associate employee."}), 404
+            return error_handler(400, aeh.SQL_NOT_FOUND, message="No company found with ID " + str(request.json['companyID']) + " to associate employee.")
     
-    if managerID != None:
+    if managerID is not None:
         manager = Employee.query.get(request.json['managerID'])
         if manager is None:
-            return jsonify({"SQL ERROR": "No employee found with ID " + str(request.json['managerID']) + " to assign as manager."}), 404
-        if manager.companyID != employee.companyID:
-            return jsonify({"API ERROR": "Manager and subordinate can't work in different companies."}), 400
-        # There's no need to verify for loops since the employee is being created now.
+            return error_handler(400, aeh.SQL_NOT_FOUND, message="No employee found with ID " + str(request.json['managerID']) + " to assign as manager.")
+        if manager.companyID != new_employee.companyID:
+            print(" Manager Company: {};      Employee Company: {} ".format(type(manager.companyID), type(new_employee.companyID)).center(90, "="))    
+            return error_handler(400, aeh.API_NOT_SAME_COMPANY)
+        # There's no need to verify for loops since the employee is being created now, therefore has no subordinates.
 
     try:
         db.session.add(new_employee)
@@ -158,13 +165,15 @@ def add_employee():
     except Exception as e:
         db.session.rollback()
         db.session.flush()
-        return jsonify({"SQL ERROR": str(e)}), 400
+        return error_handler(400, aeh.SQL_CONSTRAINT_FAILED, message=str(e))
 
 
 @app.route("/employees", methods=['GET'])
 def get_employees():
     all_employees = Employee.query.all()
     sql_result = employees_schema.dump(all_employees)
+    if len(sql_result) == 0:
+        return jsonify(sql_result), 200
     return jsonify(sql_result), 200
 
 
@@ -182,7 +191,7 @@ def get_employee_by_name():
 def get_employee_detail(id):
     employee = Employee.query.get(id)
     if employee is None:
-        return jsonify({"SQL ERROR":"Employee not found"}), 404
+        return error_handler(404, aeh.SQL_NOT_FOUND, message_param='employee')
     sql_result = employee_schema.dump(employee)
     return jsonify(sql_result), 200
 
@@ -191,53 +200,98 @@ def get_employee_detail(id):
 def usuario_delete(id):
     employee = Employee.query.get(id)
     if employee is None:
-        return jsonify({"SQL ERROR": "Employee to be deleted does not exist."}), 404
+        return error_handler(404, aeh.SQL_NOT_FOUND, message='Employee to be deleted does not exist.')
 
+    subordinates = get_employees_under([id], 1)
+    subordinatesID = [s['employeeID'] for s in subordinates]
     try:
+        changed_employees = get_indirect_changes(employee)
+        sql_result = employee_schema.dump(employee)
         db.session.delete(employee)
         db.session.commit()
-        return employee_schema.jsonify(employee), 200
+        if changed_employees is not None and len(changed_employees) > 0:
+            return jsonify({
+                    'employee':sql_result, 
+                    'indirect_changes':{
+                        'api_warning':'These employees were also changed to keep database consistency.',
+                        'changes': 'Attribute managerID set to NULL.',
+                        'employees':changed_employees }
+                    }), 200
+
+        return jsonify({'employee': sql_result, 'indirect_changes': indirect_changes}), 200
+
     except Exception as e:
         db.session.rollback()
         db.session.flush()
-        return jsonify({"SQL ERROR": str(e)}), 400
+        return error_handler(400, aeh.SQL_CONSTRAINT_FAILED, message=str(e))
 
+
+def get_indirect_changes(altered_object):
+    if type(altered_object) == Company:
+        indirect_changes = Employee.query.filter(Employee.companyID==altered_object.companyID).all()
+    elif type(altered_object) == Employee:
+        indirect_changes = Employee.query.filter(Employee.managerID==altered_object.employeeID).all()
+    else:
+        return None
+    sql_result = employees_schema.dump(indirect_changes)
+    return sql_result
 
 @app.route("/employees/<id>", methods=["PUT"])
 def employee_update(id):
     employee = Employee.query.get(id)
-    if employee is not None:
-        if 'name' in request.json:
-            employee.name = request.json['name']
+    if employee is None:
+        return error_handler(404, aeh.SQL_NOT_FOUND, message="Employee with ID "+ str(id) +" not found. If you wish to create an employee, please use the POST request.")
 
-        if 'email' in request.json:
-            employee.email = request.json['email']
+    if 'name' in request.json:
+        employee.name = request.json['name']
 
-        if 'companyID' in request.json:
+    if 'email' in request.json:
+        employee.email = request.json['email']
+
+    changed_employees = None
+    if 'companyID' in request.json:
+        if request.json['companyID'] == 0:
+            employee.companyID = None
+        else:
             company = Company.query.get(request.json['companyID'])
             if company is None:
-                return jsonify({"SQL ERROR":"No company found with ID " + str(request.json['companyID']) + " to associate employee."}), 404
-            employee.companyID = request.json['companyID']
+                return error_handler(404, aeh.SQL_NOT_FOUND, message="No company found with ID " + str(request.json['companyID']) + " to associate employee.")
+        if employee.companyID != request.json['companyID']:
+            changed_employees = get_indirect_changes(employee)
+        employee.companyID = request.json['companyID']
 
-        if 'managerID' in request.json:
+    if 'managerID' in request.json:
+        if request.json['managerID'] == 0:
+            employee.managerID = None
+        else:
             manager = Employee.query.get(request.json['managerID'])
             if manager is None:
-                return jsonify({"SQL ERROR": "No employee found with ID " + str(request.json['managerID']) + " to assign as manager."}), 404
+                return error_handler(404, aeh.SQL_NOT_FOUND, message="No employee found with ID " + str(request.json['managerID']) + " to assign as manager.")
             if manager.companyID != employee.companyID:
-                return jsonify({"API ERROR": "Manager and subordinate can't work in different companies."}), 400
+                return error_handler(400, aeh.API_NOT_SAME_COMPANY)
             if not valid_company_structure(manager.employeeID, employee.employeeID):
-                return jsonify({"API ERROR": "Not possible to assign this management relationship (probably due to a structure loop, see 'Loops' in README for more information)."}), 400
-            employee.managerID = request.json['managerID']
+                return error_handler(400, aeh.API_STRUCTURE_LOOP)
+        employee.managerID = request.json['managerID']
 
-        # if all went right so far, commit to database
-        try:    
-            db.session.flush()
-            db.session.commit() 
-        except Exception as e:
-            return jsonify({"SQL ERROR: ": str(e)}), 400
+    # if all went right so far, commit to database
+    try:    
+        db.session.flush()
+        db.session.commit()
+        sql_result = employee_schema.dump(employee) 
+    except Exception as e:
+        return error_handler(400, aeh.SQL_CONSTRAINT_FAILED, message=str(e))
 
-        return employee_schema.jsonify(employee), 200
-    return jsonify({"SQL ERROR": "Employee with ID " + str(id) + " not found. If you wish to create an employee, please use the POST request." }), 404
+    if changed_employees is not None and len(changed_employees) > 0:
+        return jsonify({
+                'employee':sql_result, 
+                'indirect_changes':{
+                    'api_warning':'These employees were also changed to keep database consistency.',
+                    'changes': 'Attribute managerID set to NULL.',
+                    'employees':changed_employees }
+                }), 200
+
+    return employee_schema.jsonify(employee), 200
+
 
 
 @app.route("/employees/<id>/structure/<level>", methods=['GET'])
@@ -245,17 +299,19 @@ def get_company_structure(id, level):
     try:
         level = int(level)
     except Exception as e:
-        return jsonify({"HTTP ERROR":"Parameter 'level' expects numeric input."}), 400
+        return error_handler(400, aeh.HTTP_PARAM_TYPE, message="Parameter 'level' expects numeric input.")
 
     employee = Employee.query.get(id)
     if employee is None:
-        return jsonify({"SQL ERROR":"Employee not found"}), 404
+        return error_handler(404, aeh.SQL_NOT_FOUND, message_param='employee')
     
     if level == 0:
         subordinates = Employee.query.filter(and_(Employee.managerID==employee.managerID, Employee.companyID == employee.companyID)).all()
         sql_result = employees_schema.dump(subordinates)
     else:
         sql_result = get_employees_under([id], int(level))
+    if len(sql_result) == 0:
+        return jsonify(sql_result), 404
     return jsonify(sql_result), 200
 
 # =================================================================================== #
@@ -272,7 +328,6 @@ def fill_test_database():
     db.session.commit()
 
 def empty_test_database():
-    # print("I have a bad feeling about this :c")
     db.session.remove()
     db.drop_all()
 

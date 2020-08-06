@@ -39,14 +39,14 @@ def empty_test_database():
     db.drop_all()
 
 
-if len(sys.argv) > 1 and sys.argv[1] in run_modes:
+if len(sys.argv) > 1 and sys.argv[1].lower() in run_modes:
     run_mode = run_modes[sys.argv[1]]
 else:
     run_mode = run_modes['debug']
 
 if __name__ == '__main__':
     app, cors, ma = create_app(run_mode)
-    from models import Company, Employee
+    from models import Company, Employee, update_manager_trigger
     import routes
     print (" Running Epic API - {} ".format(run_mode).center(90, "="))
     if run_mode == run_modes['debug']:
@@ -54,6 +54,7 @@ if __name__ == '__main__':
         app.run(debug=True, port=5002)
     if run_mode == run_modes['test']:        
         db.create_all()
+        routes.tear_down()
         routes.set_up()
         atexit.register(routes.empty_test_database)
         app.run(debug=True, port=5002)
