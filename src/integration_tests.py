@@ -8,6 +8,7 @@ import pytest
 import routes
 from flask_testing import TestCase
 from main import db
+import api_error_handler as aeh
 
 BASE_URL = "http://127.0.0.1:5002/"
 
@@ -39,20 +40,30 @@ def test_get_companies():
     (2, [be['name'] for be in base_employees if be['companyID'] == 2])
 ])
 def test_get_company_employees(companyID, expected_result):
-    response = requests.get(BASE_URL + "/companies/"+ str(companyID) + "/employees") #pied piper
+    response = requests.get(BASE_URL + "/companies/"+ str(companyID) + "/employees")
     employees = response.json()
     employee_names = [e['name'] for e in employees]
     assert employee_names == expected_result
     
-
-@pytest.mark.parametrize("companyID, expected_result", [
-    (3, 404),
-    (4, 404)
+# Test with empty company
+@pytest.mark.parametrize("companyID, expected_status, expected_json", [
+    (3, 404, [])
 ])
-def test_get_company_employees_error(companyID, expected_result):
-    response = requests.get(BASE_URL + "/companies/"+ str(companyID) + "/employees") #pied piper
+def test_get_empty_company_employees(companyID, expected_status, expected_json):
+    response = requests.get(BASE_URL + "/companies/"+ str(companyID) + "/employees")
     status = response.status_code
-    assert status == expected_result
+    assert status == expected_status and response.json() == expected_json
+
+
+# Test with company that does not exist
+@pytest.mark.parametrize("companyID, expected_status, expected_error", [
+    (4, 404, aeh.SQL_NOT_FOUND)
+])
+def test_get_company_employees_error(companyID, expected_status, expected_error):
+    response = requests.get(BASE_URL + "/companies/"+ str(companyID) + "/employees")
+    status = response.status_code
+    assert status == expected_status and response.json()['error']['error_code'] == expected_error
+
 
 @pytest.mark.parametrize("employeeID, structure_level, expected_result", [
     (2, 0, ['Michael Scott', 'Andy Bernard']),
@@ -61,7 +72,7 @@ def test_get_company_employees_error(companyID, expected_result):
     (1, 3, ['Jim Halpert', 'Stanley Hudson', 'Kevin Malone', 'Oscar Martinez', 'Pete Miller', 'Toby Flenderson'])
 ])
 def test_get_company_structure(employeeID, structure_level, expected_result):
-    response = requests.get(BASE_URL + "/employees/" + str(employeeID) + "/structure/" + str(structure_level)) #pied piper
+    response = requests.get(BASE_URL + "/employees/" + str(employeeID) + "/structure/" + str(structure_level)) 
     employees = response.json()
     employee_names = [e['name'] for e in employees]
     assert employee_names == expected_result
@@ -75,3 +86,47 @@ def test_insert_company(new_company, expected_result):
     response = requests.post(BASE_URL + "/companies", json=new_company)
     status = response.status_code
     assert status == expected_result
+
+
+@pytest.mark.parametrize("new_employee, expected_result", [
+    ({"name":"Gabe Lewis", "email":"jared_dunn@dm.com", "companyID":"1"}, 200),
+    ({"name":"Jared Dunn", "email":"gabe_lewis@pp.com", "companyID":"2", "managerID":"15"}, 200)
+])
+def test_insert_employee(new_employee, expected_result):
+    response = requests.post(BASE_URL + "/employees", json=new_employee)
+    status = response.status_code
+    assert status == expected_result
+
+
+@pytest.mark.parametrize("new_employee, expected_status, expected_error", [
+    ({"name":"Jim", "email":"beets_bears_battlestargallactica@dm.com", "companyID":"1"}, 400, aeh.SQL_CONSTRAINT_FAILED), # repeated email
+    ({"name":"Russ Hanneman", "email":"brian@filming.crew", "companyID":"2", "managerID":"4"}, 400, aeh.API_NOT_SAME_COMPANY),
+    ({"name":"Ryan Howard", "email":"kelly_i_love_you@dm.com", "companyID":"10"}, 400, aeh.SQL_NOT_FOUND)
+])
+def test_insert_employee_errors(new_employee, expected_status, expected_error):
+    response = requests.post(BASE_URL + "/employees", json=new_employee)
+    status = response.status_code
+    error = response.json()['error']['error_code']
+    assert status == expected_status and error == expected_error
+
+
+@pytest.mark.parametrize("employeeID, employee_data, expected_status", [
+    (4, {"name":"Pam Beesly Halpert", "email":"pamela_beehal@dm.com"}, 200), # married
+    (13, {"managerID": 10}, 200), # changing boss
+])
+def test_edit_employee(employeeID, employee_data, expected_status): 
+    response = requests.put(BASE_URL + "/employees/"+str(employeeID), json=employee_data)
+    status = response.status_code    
+    assert status == expected_status
+
+
+@pytest.mark.parametrize("employeeID, employee_data, expected_status, expected_error", [
+    (10, {"companyID": 10}, 404, aeh.SQL_NOT_FOUND),
+    (5, {"managerID": 15}, 400, aeh.API_NOT_SAME_COMPANY),
+    (2, {"managerID": 6}, 400, aeh.API_STRUCTURE_LOOP),
+])
+def test_edit_employee_errors(employeeID, employee_data, expected_status, expected_error): 
+    response = requests.put(BASE_URL + "/employees/"+str(employeeID), json=employee_data)
+    status = response.status_code
+    error = response.json()['error']['error_code']
+    assert status == expected_status and error == expected_error
