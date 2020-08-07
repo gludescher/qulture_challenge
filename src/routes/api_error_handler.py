@@ -44,5 +44,17 @@ def error_handler(status_code, error_code, *argv, message=""):
         }
     }
 
-    return jsonify(response), status_code   
+    return jsonify(response), status_code
+
+
+def check_missing_parameters(request, required):
+    if request.json is None:
+        return required
+
+    missing = []
+    for param in required:
+        if param not in request.json:
+            missing.append(param)
+            
+    return missing 
     

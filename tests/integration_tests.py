@@ -5,17 +5,21 @@ import datetime
 import requests
 import time
 import pytest
-import routes
 from flask_testing import TestCase
-from main import db
-import api_error_handler as aeh
+
+# we need this here so the test script can find the dir from which to import aeh
+import sys
+sys.path.append("..")
+
+from src.routes import api_error_handler as aeh
+
 
 BASE_URL = "http://127.0.0.1:5002/"
 
-# time.sleep(5)
 
 @pytest.fixture(scope='module', autouse=True)
 def setup_and_teardown(): 
+    # does this befores every session
     response = requests.post(BASE_URL + "/tests/end")
     response = requests.post(BASE_URL + "/tests/start")    
     yield response

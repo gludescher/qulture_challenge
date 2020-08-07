@@ -3,17 +3,18 @@ from flask_sqlalchemy import SQLAlchemy
 from flask_marshmallow import Marshmallow
 from sqlalchemy import Column, Integer, DateTime, and_
 from flask_cors import CORS
-import app_core
-from app_core import db
-from app_core import db, ma, app
 import json 
 import os
 import datetime
 import requests
-from models import Company, CompanySchema, company_schema, companies_schema
-from models import Employee, EmployeeSchema, employee_schema, employees_schema, update_manager_trigger
-import api_error_handler as aeh
-from api_error_handler import error_handler
+
+from app.app_core import db, ma, app
+import routes.api_error_handler as aeh
+from routes.api_error_handler import error_handler, check_missing_parameters
+
+from models.company_model import Company, CompanySchema, company_schema, companies_schema
+from models.employee_model import Employee, EmployeeSchema, employee_schema, employees_schema, update_manager_trigger
+
 
 # Recursive function that goes up a company's structure, checking for possible 
 # management loops when creating/editing an employee. 
@@ -53,72 +54,6 @@ def get_employees_under(employees, level):
 
 
 # =================================================================================== #
-# ================================== C O M P A N Y ================================== #
-# =================================================================================== #
-@app.route("/companies", methods=['POST'])
-def add_company():
-    required = ['name']
-    missing = app_core.check_missing_parameters(request, required)
-    if len(missing) > 0:
-        return jsonify({"HTTP Error": "Missing required parameter(s) " + str(missing) + "."}), 400
-    name = request.json['name']
-    new_company = Company(name)
-
-    try:
-        db.session.add(new_company)
-        db.session.flush()
-        sql_result = company_schema.dump(new_company)
-        db.session.commit()
-        return jsonify(sql_result), 200
-
-    except Exception as e:
-        return error_handler(400, aeh.SQL_CONSTRAINT_FAILED, message=str(e))
-
-
-# endpoint to show all lines
-@app.route("/companies", methods=['GET'])
-def get_companies():
-    all_companies = Company.query.all()
-    sql_result = companies_schema.dump(all_companies)
-    if len(sql_result) == 0:
-        return jsonify(sql_result), 404
-    return jsonify(sql_result), 200
-
-
-@app.route("/companies/<id>", methods=['GET'])
-def get_company_detail(id):
-    company = Company.query.get(id)
-    if company is None:
-        return error_handler(404, aeh.SQL_NOT_FOUND, 'company')
-    sql_result = company_schema.dump(company)
-    return jsonify(sql_result), 200
-
-
-@app.route("/companies/filter", methods=['GET'])
-def get_company_by_name():
-    name = request.args.get('name')
-    filtered_companies = Company.query.filter(Company.name.like("%"+name+"%"))
-    sql_result = companies_schema.dump(filtered_companies)
-    if len(sql_result) == 0:
-        return jsonify(sql_result), 404        
-    return jsonify(sql_result), 200
-
-
-@app.route("/companies/<id>/employees", methods=['GET'])
-def get_company_employees(id):
-    company = Company.query.get(id)
-    if company is None:
-        return error_handler(404, aeh.SQL_NOT_FOUND, 'company')
-    company_employees = Employee.query.filter(Employee.companyID==id)
-    sql_result = employees_schema.dump(company_employees)
-    if len(sql_result) == 0:
-        return jsonify(sql_result), 404
-    return jsonify(sql_result), 200
-
-# =================================================================================== #
-
-
-# =================================================================================== #
 # ================================== E M P L O Y E E ================================ #
 # =================================================================================== #
 
@@ -126,7 +61,7 @@ def get_company_employees(id):
 def add_employee():
     required = ['name', 'email']
 
-    missing = app_core.check_missing_parameters(request, required)
+    missing = check_missing_parameters(request, required)
     if len(missing) > 0:
         return error_handler(400, aeh.HTTP_MISSING_PARAMS, missing)
 
@@ -316,35 +251,4 @@ def get_company_structure(id, level):
     return jsonify(sql_result), 200
 
 # =================================================================================== #
-def fill_test_database():
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    with open(os.path.join(basedir, 'starting_companies.json')) as file:
-        companies_json = json.load(file)
-    with open(os.path.join(basedir, 'starting_employees.json')) as file:
-        employees_json = json.load(file)
-    companies = [Company(c['name']) for c in companies_json]
-    employees = [Employee(e['name'], e['email'], e['companyID'] if 'companyID' in e else None, e['managerID'] if 'managerID' in e else None) for e in employees_json]
-    db.session.add_all(companies)
-    db.session.add_all(employees)
-    db.session.commit()
 
-def empty_test_database():
-    db.session.remove()
-    db.drop_all()
-
-@app.route("/tests/start", methods=['POST'])
-def set_up():
-    print("\n")
-    print("Setting up database and stuff".center(80, "="))
-    print("\n")
-    db.create_all()
-    fill_test_database()
-    return "Database up and ready for testing!", 200
-
-@app.route("/tests/end", methods=['POST'])
-def tear_down():
-    print("\n")
-    print("Tearing down database and stuff".center(80, "="))
-    print("\n")
-    empty_test_database()
-    return "Database destroyed!", 200
