@@ -1,6 +1,38 @@
 # Companify - API
 
-[1.Intro](#1.-intro)
+<!-- toc -->
+
+- [1. Intro](#1-intro)
+- [2. Model](#2-model)
+  - [2.1. Companies Table](#21-companies-table)
+  - [2.2. Employees Table](#22-employees-table)
+  - [2.3. Company Structure & Constraints](#23-company-structure--constraints)
+- [3. API](#3-api)
+  - [3.1. Companies Endpoints](#31-companies-endpoints)
+    - [Create company](#create-company)
+    - [List companies](#list-companies)
+    - [Get company](#get-company)
+    - [Search company](#search-company)
+    - [List company's employees](#list-companys-employees)
+  - [3.2. Employees Endpoints](#32-employees-endpoints)
+    - [Create employee](#create-employee)
+    - [List employees](#list-employees)
+    - [Get employee](#get-employee)
+    - [Search employee](#search-employee)
+    - [Get employee's subordinates](#get-employees-subordinates)
+    - [Edit employee](#edit-employee)
+    - [Delete employee](#delete-employee)
+  - [3.3. Tests Endpoints](#33-tests-endpoints)
+    - [Test Set Up](#test-set-up)
+    - [Test Tear Down](#test-tear-down)
+  - [3.4. Error Handling](#34-error-handling)
+    - [Default status codes](#default-status-codes)
+    - [Error codes](#error-codes)
+- [4. Run Modes](#4-run-modes)
+    - [Test Mode](#test-mode)
+- [Final Considerations](#final-considerations)
+
+<!-- tocstop -->
 
 # 1. Intro
 
@@ -37,7 +69,7 @@ By project definition, management relationship between employees must follow cer
 
 1. No employee may have more than one manager;
 2. No employee may have a manager from another company;
-3. No employee of someone above itself in the chain of management, i.e. there can be no structure loops.
+3. No employee may be manager of someone above itself in the chain of management, i.e. there can be no structure loops.
 
 To make the third constraint clearer, let's use an example. Take, for instance, the company Dunder Mifflin, structured as follows in the application:
 
@@ -48,12 +80,12 @@ Figure 1
 For the structure above, we could consider the following operations:
 
 - Invalid operations examples:
-    - Assign Jim as Michael's manager: Jim is under Dwight who is under Michael. Therefore, this would create a loop.
+    - Assign Jim as Michael's manager: Jim is under Dwight, who is under Michael. Therefore, this would create a loop.
     - Assign Nellie as Andy's manager: Nelly is under Andy. This would also create a loop.
 - Valid operations examples:
     - Assign Robert California as Michael's manager.
-    - Assign Nellie Bertram as Michael's manager: although unintuitive, Nellie isn't below Michael in the hierarchy. In this case, all employees currently under Michael would also be under Nellie. Thus, Michael would be on the same level as Toby.
-    - Assign Dwight as Pete's manager: although Pete already has a manager, this would simply change his manager, as in a department change. If he had subordinates, they would come along as well.
+    - Assign Nellie Bertram as Michael's manager: although unintuitive, Nellie isn't below Michael in the hierarchy. In this case, all employees currently under Michael would also be under Nellie. Michael would be on the same level as Toby.
+    - Assign Dwight as Pete's manager: although Pete already has a manager, this would simply alter his current manager, as in a department change. If he had subordinates, they would come along as well.
     - Remove Jim's manager (set to NULL) and then assign Jim as Michael's manager: now, Jim has no manager when we try to assign him as Michael's manager, so there is no problem in that.
 
 # 3. API
@@ -216,7 +248,7 @@ Lists all the employees associated to specified company.
     - *name* - String; name of the employee to be created.
     - *email* - String; email of the employee to be created; must be unique in database.
     - companyID - Integer; company in which the employee works; must currently exist in database.
-    - managerID - Integer; manager of the employee being created; must currently exist in database; must obey constraints defined in section 2.3.
+    - managerID - Integer; manager of the employee being created; must currently exist in database; must follow constraints defined in [section 2.3](#23-company-structure--constraints).
 - **Request example:**
 
     ```python
@@ -295,7 +327,7 @@ Lists all the employees associated to specified company.
     Status: 200
     ```
 
-### ****Get employee
+### Get employee
 
 - **Path:** '/employees/<*employeeID*>'
 - **Method:** GET
@@ -318,7 +350,7 @@ Lists all the employees associated to specified company.
     Status: 200
     ```
 
-### ****Search employee
+### Search employee
 
 - **Path:** '/employees/search'
 - **Method:** GET
@@ -354,14 +386,14 @@ Lists all the employees associated to specified company.
 
 ### Get employee's subordinates
 
-Lists the employees N levels directly below the specified employee. If N = 0, lists the employees under the same manager as the specified employee, i.e. on the same hierarchy level. It is valid noting that the function accepts any level ≥0 of hierarchy as input.
-Still using Dunder Mifflin structure (Figure 1), if a call is made passing Michael's employeeID and level = 1, the return would be Dwight, Pam and Angela. The level 2 return for Michael would be Stanley, Jim, Kevin and Oscar. Level 0 for Jim is just Stanley, since they share Dwight as manager. 
+Lists the employees N levels directly below the specified employee. If N = 0, lists the employees under the same manager as the specified employee (this included), i.e. on the same hierarchy level. It is valid noting that the function accepts any level ≥0 of hierarchy as input.
+Still using Dunder Mifflin structure (Figure 1), if a call is made passing Michael's employeeID and level = 1, the return would be Dwight, Pam and Angela. The level 2 return for Michael would be Stanley, Jim, Kevin and Oscar. Level 0 for Jim is just himself and Stanley, since they share Dwight as manager. 
 
 - **Path:** '/employees/<*employeeID>*/structure/*<level>*''
 - **Method:** GET
 - **Parameters:**
     - *employeeID* - Integer; specified employee to serve as base for the structure listing.
-    - *level* - Integer; defines on how many hierarchic grades below the specified employee should be the return.
+    - *level* - Integer; defines on how many hierarchic grades below the specified employee should be the listing for the return.
 - **Request example:**
 
     ```python
@@ -418,7 +450,7 @@ Changing one's company requires attention to some specific details:
 
 Changing one's manager is also worthy of note:
 
-- It must, as always, follow the constraints defined in section 2.3.
+- It must, as always, follow the constraints defined in [section 2.3](#23-company-structure--constraints).
 - If it is necessary to assign a relationship that currently generates a loop, you should first unassign the manager from the lower-graded employee and then assign this employee as manager to the other. E.g.: using Dunder Mifflin (Figure 1), to assign Jim as Michael's manager, it is necessary to remove Jim's manager and only then proceed.
 
 **NOTE:** To explicitly unassign a manager from an employee or remove an employee from a company, the corresponding ID should be set to null in the PUT request.
@@ -496,7 +528,7 @@ Changing one's manager is also worthy of note:
 - **Path:** '/employees/<*employeeID>*'
 - **Method:** DELETE
 
-This operation, as well as editing employee, also returns the indirect changes it may have caused, since the practical effects of deleting an employee or changing its company are basically the same for its subordinates.
+This operation, as well as "Editing employee", also returns the indirect changes it may have caused, since the practical effects of deleting an employee or changing its company are basically the same for its subordinates.
 
 - **Request example:**
 
@@ -559,7 +591,7 @@ This endpoint drops all tables located in the test database, cleaning the change
 
 ## 3.4. Error Handling
 
-This API uses the default HTTP status codes to report the result of requests but also makes use of proprietary error codes, with the intent of better specifying the problem.
+This API uses the default HTTP status codes to report the result of requests. It also makes use of proprietary error codes, with the intent of better specifying the problem.
 
 ### Default status codes
 
@@ -716,9 +748,13 @@ The application was designed to allow different run modes that make it easy to a
 
 There are 3 run modes: "Test", "Debug" and "Production". 
 
-[Untitled](https://www.notion.so/20b4e5051f60435585438fe95d7228ae)
+|  Run Mode  	|     Database     	|      Run tags     	|
+|:----------:	|:----------------:	|:-----------------:	|
+| Test       	| test.sqlite      	| "test", "t"       	|
+| Debug      	| companify.sqlite 	| "debug", "d"      	|
+| Production 	| companify.sqlite 	| "production", "d" 	|
 
-To select which mode to run the application, the name of the mode should be passed as argument on the command line while running main.py. If no argument is passed, it will run on default (debug) mode. For example, to run on "Test" mode:
+To select which mode to run the application, the run tage of the mode should be passed as argument on the command line while running main.py. If no argument is passed, it will run on default (debug) mode. For example, to run on "Test" mode:
 
 ```bash
 python src/main.py t
@@ -726,7 +762,7 @@ python src/main.py t
 
 ### Test Mode
 
-The Test Mode is the only mode that enables the test endpoints, avoiding messing with the production database.
+The Test Mode is the only mode that enables the test endpoints to avoid messing with the production database.
 
 To execute the automated tests, it is necessary to run the script with pytest, as following:
 
@@ -734,11 +770,11 @@ To execute the automated tests, it is necessary to run the script with pytest, a
 pytest tests/integration_tests.py
 ```
 
-It is also necessary that the application is already up and running in Test Mode.
+It is also necessary that the application is already up and running in Test Mode so it can process the requests.
 
 # Final Considerations
 
-This was a project developed as a challenge for a recruitment process for internship in Qulture.Rocks and was built in about a week. If you have any suggestions or feedbacks, send me an email: guilherme.ludescher@usp.br. I'll gladly read and promptly answer them! 😁
+This was a project developed as a challenge for a recruitment process for internship in [Qulture.Rocks](http://qulture.Rocks) and was built in a week. If you have any suggestions or feedbacks, send me an email: guilherme.ludescher@usp.br. I'll gladly read and promptly answer them! 😁
 
 Anyhow, thanks for reading! Hope you liked it!
 
