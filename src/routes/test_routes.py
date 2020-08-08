@@ -33,19 +33,13 @@ def empty_test_database():
     db.session.remove()
     db.drop_all()
 
-@app.route("/tests/start", methods=['POST'])
+@app.route("/tests/setup", methods=['POST'])
 def set_up():
-    print("\n")
-    print("Setting up database and stuff".center(80, "="))
-    print("\n")
     db.create_all()
     fill_test_database()
-    return "Database up and ready for testing!", 200
+    return jsonify({"message":"Database up and ready for testing!"}), 200
 
-@app.route("/tests/end", methods=['POST'])
+@app.route("/tests/teardown", methods=['POST'])
 def tear_down():
-    print("\n")
-    print("Tearing down database and stuff".center(80, "="))
-    print("\n")
     empty_test_database()
-    return "Database destroyed!", 200
+    return jsonify({"message":"Database dropped!"}), 200

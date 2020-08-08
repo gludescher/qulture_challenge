@@ -38,7 +38,6 @@ def fill_test_database():
     db.session.commit()
     
 def empty_test_database():
-    # print("I have a bad feeling about this :c")
     db.session.remove()
     db.drop_all()
 
@@ -58,7 +57,7 @@ if __name__ == '__main__':
     from models.employee_model import Employee, update_manager_trigger
     from models.company_model import Company
     
-    print (" Running Epic API - {} ".format(run_mode).center(90, "="))
+    print(" Running Companify API - {} ".format(run_mode).center(90, "="))
     if run_mode == run_modes['test']:
         import routes.test_routes
         db.create_all()

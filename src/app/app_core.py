@@ -26,7 +26,7 @@ def create_test_app(db_name='test.sqlite'):
     return app
 
 
-def create_production_app(db_name='epic.sqlite'):
+def create_production_app(db_name='companify.sqlite'):
     app = Flask(__name__)
     app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(project_dir, 'databases', db_name)
     app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = 'False'

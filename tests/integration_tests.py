@@ -19,9 +19,8 @@ BASE_URL = "http://127.0.0.1:5002/"
 
 @pytest.fixture(scope='module', autouse=True)
 def setup_and_teardown(): 
-    # does this befores every session
-    response = requests.post(BASE_URL + "/tests/end")
-    response = requests.post(BASE_URL + "/tests/start")    
+    response = requests.post(BASE_URL + "/tests/teardown")
+    response = requests.post(BASE_URL + "/tests/setup")    
     yield response
     
 basedir = os.path.abspath(os.path.dirname(__file__))
@@ -131,6 +130,31 @@ def test_edit_employee(employeeID, employee_data, expected_status):
 ])
 def test_edit_employee_errors(employeeID, employee_data, expected_status, expected_error): 
     response = requests.put(BASE_URL + "/employees/"+str(employeeID), json=employee_data)
+    status = response.status_code
+    error = response.json()['error']['error_code']
+    assert status == expected_status and error == expected_error
+
+@pytest.mark.parametrize("employeeID, expected_indirect", [
+    (3, [6, 7]),
+    (14, [])
+])
+def test_delete_employee(employeeID, expected_indirect):
+    response = requests.delete(BASE_URL + "/employees/" + str(employeeID))
+    status = response.status_code
+    if 'indirect_changes' in response.json():
+        indirect = response.json()['indirect_changes']['employees']
+        indirectID = [i['employeeID'] for i in indirect]
+        indirectID.sort()
+    else:
+        indirectID = []
+
+    assert status == 200 and indirectID == expected_indirect
+
+@pytest.mark.parametrize("employeeID, expected_status, expected_error", [
+    (100, 404, aeh.SQL_NOT_FOUND)
+])
+def test_delete_employee_error(employeeID, expected_status, expected_error):
+    response = requests.delete(BASE_URL + "/employees/" + str(employeeID))
     status = response.status_code
     error = response.json()['error']['error_code']
     assert status == expected_status and error == expected_error

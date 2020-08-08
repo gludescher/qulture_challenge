@@ -57,9 +57,11 @@ def get_company_detail(id):
     return jsonify(sql_result), 200
 
 
-@app.route("/companies/filter", methods=['GET'])
+@app.route("/companies/search", methods=['GET'])
 def get_company_by_name():
     name = request.args.get('name')
+    if name is None:
+        return get_companies()
     filtered_companies = Company.query.filter(Company.name.like("%"+name+"%"))
     sql_result = companies_schema.dump(filtered_companies)
     if len(sql_result) == 0:

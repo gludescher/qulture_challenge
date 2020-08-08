@@ -23,7 +23,7 @@ default_messages = {
     "http-0002": "Parameter(s) {} expect {} input.",
     "sql-0404": "Specified {} not found in database.",
     "api-0001": "Manager (companyID = {}) and subordinate (companyID = {}) can't work in different companies.",
-    "api-0002": "Not possible to assign this management relationship (probably due to a structure loop, see 'Loops' in README for more information)."
+    "api-0002": "Not possible to assign this management relationship (probably due to a structure loop, see 'Company Structure & Constraints' in README for more information)."
 }
 
 
