@@ -11,8 +11,6 @@ import os
 import sys
 import atexit
 
-# import sys
-# sys.path.append("..")
 
 from app.app_core import db, create_app
 
@@ -24,22 +22,6 @@ run_modes = {
     "production": "PRODUCTION_MODE",
     "p": "PRODUCTION_MODE"
 }
-
-def fill_test_database():
-    basedir = os.path.abspath(os.path.dirname(__file__))
-    with open(os.path.join(basedir, 'starting_companies.json')) as file:
-        companies_json = json.load(file)
-    with open(os.path.join(basedir, 'starting_employees.json')) as file:
-        employees_json = json.load(file)
-    companies = [Company(c['name']) for c in companies_json]
-    employees = [Employee(e['name'], e['email'], e['companyID'] if 'companyID' in e else None, e['managerID'] if 'managerID' in e else None) for e in employees_json]
-    db.session.add_all(companies)
-    db.session.add_all(employees)
-    db.session.commit()
-    
-def empty_test_database():
-    db.session.remove()
-    db.drop_all()
 
 
 if len(sys.argv) > 1 and sys.argv[1].lower() in run_modes:
