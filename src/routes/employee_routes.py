@@ -45,7 +45,9 @@ def get_employees_under(employees, level):
         employees = [sub['employeeID'] for sub in sql_result]
     return(get_employees_under(employees, level))
 
-
+# Returns indirect changes when an object is altered.
+# Although deleting a compnay is yet to be implemented, this
+# function is ready to report the indirect changes to that.
 def get_indirect_changes(altered_object):
     if type(altered_object) == Company:
         indirect_changes = Employee.query.filter(Employee.companyID==altered_object.companyID).all()
