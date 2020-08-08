@@ -1,5 +1,7 @@
 # Companify - API
 
+[1.Intro](#1.-intro)
+
 # 1. Intro
 
 This is the documentation for the API of the Companify application. The RESTful API is expected to manage multiple companies and its employees, allowing an user to insert, edit, or delete data using HTTP requests.
